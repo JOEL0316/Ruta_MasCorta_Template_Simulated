@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruta más corta con Google Maps</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            width: 100%;
+            padding: 1em 0;
+            text-align: center;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1em;
+            margin: 1em 0;
+        }
+        #controls select, #controls button {
+            padding: 0.5em;
+            font-size: 1em;
+        }
+        #calculateRoute {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5em 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #calculateRoute:hover {
+            background-color: #0056b3;
+        }
+        #calculateShortestRoute {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 0.5em 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #calculateShortestRoute:hover {
+            background-color: #218838;
+        }
+        #map {
+            height: 500px;
+            width: 90%;
+            max-width: 1200px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1em;
+        }
+        #routeInfo {
+            background-color: white;
+            border-radius: 10px;
+            padding: 1em;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 1200px;
+            text-align: center;
+        }
+    </style>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyATseXRXJunPtS9HPA9RtoKSLbHJpRXqR8&libraries=places&callback=initMap">
+    </script>
+    <script>
+        let map, directionsService, directionsRenderer;
+        const coord = {
+            'Aguascalientes': [21.8853, -102.2916],
+            'Baja California': [32.6246, -115.4523],
+            'Baja California Sur': [24.1426, -110.3128],
+            'Campeche': [19.8301, -90.5349],
+            'Chiapas': [16.7539, -93.1131],
+            'Chihuahua': [28.6329, -106.0691],
+            'Ciudad de Mexico': [19.4326, -99.1332],
+            'Coahuila': [25.4232, -101.0000],
+            'Colima': [19.1223, -104.0072],
+            'Durango': [24.0277, -104.6532],
+            'Guanajuato': [21.0190, -101.2574],
+            'Guerrero': [17.4392, -99.5451],
+            'Hidalgo': [20.1011, -98.7302],
+            'Jalisco': [20.6597, -103.3496],
+            'Estado de Mexico': [19.4969, -99.7233],
+            'Michoacan': [19.5665, -101.7068],
+            'Morelos': [18.6813, -99.1013],
+            'Nayarit': [21.7514, -104.8455],
+            'Nuevo Leon': [25.6866, -100.3161],
+            'Oaxaca': [17.0732, -96.7266],
+            'Puebla': [19.0414, -98.2063],
+            'Queretaro': [20.5888, -100.3899],
+            'Quintana Roo': [19.1817, -88.4791],
+            'San Luis Potosí': [22.1565, -100.9855],
+            'Sinaloa': [24.8045, -107.4938],
+            'Sonora': [29.0720, -110.9559],
+            'Tabasco': [17.9869, -92.9303],
+            'Tamaulipas': [23.7417, -99.1458],
+            'Tlaxcala': [19.3139, -98.2404],
+            'Veracruz': [19.1738, -96.1342],
+            'Yucatan': [20.7099, -89.0943],
+            'Zacatecas': [22.7709, -102.5832]
+        };
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 19.4326, lng: -99.1332 },
+                zoom: 5
+            });
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(map);
+
+            populateComboBox('start');
+            populateComboBox('end');
+
+            document.getElementById("calculateRoute").addEventListener("click", () => {
+                const start = document.getElementById("start").value;
+                const end = document.getElementById("end").value;
+                calculateAndDisplayRoute(directionsService, directionsRenderer, start, end);
+            });
+
+            document.getElementById("calculateShortestRoute").addEventListener("click", fetchShortestRoute);
+        }
+
+        function populateComboBox(elementId) {
+            const selectElement = document.getElementById(elementId);
+            for (let location in coord) {
+                let option = document.createElement("option");
+                option.text = location;
+                selectElement.add(option);
+            }
+        }
+
+        function calculateAndDisplayRoute(directionsService, directionsRenderer, start, end) {
+            directionsService.route(
+                {
+                    origin: start,
+                    destination: end,
+                    travelMode: google.maps.TravelMode.DRIVING
+                },
+                (response, status) => {
+                    if (status === "OK") {
+                        directionsRenderer.setDirections(response);
+                        displayRouteInfo(response.routes[0].legs[0], 'blue', response.routes[0].overview_path);
+                    } else {
+                        console.error("Directions request failed due to " + status);
+                        window.alert("No se pudo encontrar una ruta válida. Por favor verifica las ubicaciones e intenta de nuevo.");
+                    }
+                }
+            );
+        }
+
+        function displayRouteInfo(leg, color, path) {
+            const routeInfo = document.getElementById("routeInfo");
+
+            const statesPassed = path.map(point => {
+                let minDistance = Infinity;
+                let nearestState = null;
+                for (const state in coord) {
+                    const [lat, lng] = coord[state];
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        new google.maps.LatLng(lat, lng),
+                        point
+                    );
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestState = state;
+                    }
+                }
+                return nearestState;
+            }).filter((state, index, array) => array.indexOf(state) === index);
+
+            routeInfo.innerHTML = `
+                <p>Distancia: ${leg.distance.text}</p>
+                <p>Duración: ${leg.duration.text}</p>
+                <p>Estados visitados: ${statesPassed.join(', ')}</p>
+            `;
+
+            directionsRenderer.setOptions({
+                polylineOptions: {
+                    strokeColor: color
+                }
+            });
+        }
+
+        function fetchShortestRoute() {
+            const start = document.getElementById("start").value;
+            const end = document.getElementById("end").value;
+
+            fetch('http://127.0.0.1:5000/shortest_route', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ start: start, end: end })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error("Error:", data.error);
+                    return;
+                }
+                const { mejor_ruta, distancia_total } = data;
+                displayOptimizedRoute(mejor_ruta, distancia_total);
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function displayOptimizedRoute(ruta, distancia_total) {
+            if (ruta && ruta.length > 0) {
+                const waypts = [];
+                for (let i = 1; i < ruta.length - 1; i++) {
+                    waypts.push({
+                        location: { lat: coord[ruta[i]][0], lng: coord[ruta[i]][1] },
+                        stopover: true
+                    });
+                }
+
+                directionsService.route(
+                    {
+                        origin: { lat: coord[ruta[0]][0], lng: coord[ruta[0]][1] },
+                        destination: { lat: coord[ruta[ruta.length - 1]][0], lng: coord[ruta[ruta.length - 1]][1] },
+                        waypoints: waypts,
+                        optimizeWaypoints: true,
+                        travelMode: google.maps.TravelMode.DRIVING
+                    },
+                    (response, status) => {
+                        if (status === "OK") {
+                            directionsRenderer.setDirections(response);
+                            displayRouteInfo(response.routes[0].legs[0], 'green', response.routes[0].overview_path);
+                            document.getElementById("routeInfo").innerHTML += ``;
+                        } else {
+                            window.alert("Directions request failed due to " + status);
+                        }
+                    }
+                );
+            } else {
+                console.error('Invalid route data');
+            }
+        }
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Ruta más corta...</h1>
+    </header>
+    <div id="controls">
+        <select id="start"></select>
+        <select id="end"></select>
+        <button id="calculateRoute">Ruta GoogleMaps</button>
+        <button id="calculateShortestRoute">Ruta Optimizada</button>
+    </div>
+    <div id="map"></div>
+    <div id="routeInfo"></div>
+</body>
+</html>
